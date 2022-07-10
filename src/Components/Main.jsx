@@ -1,12 +1,15 @@
 /** @format */
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import './OldCss.css'
 import videoMov from '../assets/video.mov'
+import videoMov2 from '../assets/h265Vid.mp4'
+import videoMov3 from '../assets/vidAv1.mp4'
 import logo from '../assets/logo.png'
 import luk from '../assets/luka.png'
 import lukBg from '../assets/luka.jpg'
 import huilo from '../assets/huilo.jpg'
+import smokeImg from '../assets/smoke.png'
 import huiloNoBg from '../assets/huilo.png'
 import walletIcon from '../assets/walletIcon.svg'
 import metaIcon from '../assets/metalogo.svg'
@@ -17,14 +20,56 @@ import { Mainnet, DAppProvider, useEtherBalance, useEthers, Config, useLookupAdd
 import { getDefaultProvider } from 'ethers'
 import { formatEther } from '@ethersproject/units'
 import Typewriter from 'typewriter-effect'
+import WalletConnect from '@walletconnect/client'
+import QRCodeModal from '@walletconnect/qrcode-modal'
+import Lines from './Lines'
 
 const MainPage = () => {
     const { account, library, activateBrowserWallet, deactivate, error } = useEthers()
     const etherBalance = useEtherBalance(account)
-    let canvas = document.querySelector('#smoke')
+    let canvas = document.getElementById('smoke')
     const [toggleModal, setToggleModal] = useState(false)
+    const [showPlayBtn, setShowPlayBtn] = useState(false)
+    const [tokensInput, setTokensInput] = useState(0)
+
+    const vidRef = useRef()
+
+    const connector = new WalletConnect({
+        bridge: 'https://bridge.walletconnect.org', // Required
+        qrcodeModal: QRCodeModal
+    })
+
+    const checkField = () => {
+        let replaced = tokensInput.toString()
+        setTokensInput(replaced.replace(',', '.'))
+    }
+
+    const uri = connector.uri
 
     const [rendered, setRendered] = useState('')
+
+    const tabsEl = document.querySelectorAll('.accordion')
+    const contentEl = document.querySelectorAll('.accordion-content')
+
+    const showText = event => {
+        for (let i = 0; i < tabsEl.length; i++) {
+            if (tabsEl[i].children[0] === event.target && tabsEl[i].classList.length === 1) {
+                tabsEl[i].classList.add('open')
+                contentEl[i].style.display = 'block'
+            } else if (tabsEl[i].children[0] === event.target && tabsEl[i].classList.length === 2) {
+                tabsEl[i].classList.remove('open')
+                contentEl[i].style.display = 'none'
+            } else {
+                tabsEl[i].classList.remove('open')
+                contentEl[i].style.display = 'none'
+            }
+        }
+    }
+
+    const playVideo = () => {
+        vidRef.current.play()
+        setShowPlayBtn(false)
+    }
 
     const ens = useLookupAddress()
 
@@ -45,15 +90,17 @@ const MainPage = () => {
         }
     }, [error])
 
-    function spawn() {
-        ;(function () {
+    const animate = () => {
+        function assignAnim() {
             var requestAnimationFrame =
                 window.requestAnimationFrame ||
                 window.mozRequestAnimationFrame ||
                 window.webkitRequestAnimationFrame ||
                 window.msRequestAnimationFrame
             window.requestAnimationFrame = requestAnimationFrame
-        })()
+        }
+
+        assignAnim()
 
         let par = {
             r: 255,
@@ -145,7 +192,7 @@ const MainPage = () => {
             this.y += this.velY
         }
 
-        smokeImage.src = '../img/smoke.png'
+        smokeImage.src = smokeImg
         smokeImage.onload = function () {
             loading = false
         }
@@ -161,7 +208,9 @@ const MainPage = () => {
         var origImage = smokeImage
     }
 
-    canvas && spawn()
+    useEffect(() => {
+        if (canvas) animate()
+    }, [canvas])
 
     return (
         <div className='wrapper'>
@@ -240,19 +289,28 @@ const MainPage = () => {
 
                 <div className='main-block' id='main-block'>
                     <div className='video-container'>
-                        <div className='play-btn'>
-                            <svg width='50px' height='50px' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
-                                <path
-                                    fill='none'
-                                    stroke='#27ff32'
-                                    strokeWidth='2'
-                                    d='M3,22.0000002 L21,12 L3,2 L3,22.0000002 Z M5,19 L17.5999998,11.9999999 L5,5 L5,19 Z M7,16 L14.1999999,12 L7,8 L7,16 Z M9,13 L10.8,12 L9,11 L9,13 Z'
-                                ></path>
-                            </svg>
-                        </div>
-                        <video src={videoMov} autoPlay muted></video>
+                        {showPlayBtn && (
+                            <div onClick={() => playVideo()} className='play-btn'>
+                                <svg width='50px' height='50px' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'>
+                                    <path
+                                        fill='none'
+                                        stroke='#27ff32'
+                                        strokeWidth='2'
+                                        d='M3,22.0000002 L21,12 L3,2 L3,22.0000002 Z M5,19 L17.5999998,11.9999999 L5,5 L5,19 Z M7,16 L14.1999999,12 L7,8 L7,16 Z M9,13 L10.8,12 L9,11 L9,13 Z'
+                                    ></path>
+                                </svg>
+                            </div>
+                        )}
+
+                        <video width='320' ref={vidRef} autoPlay onEnded={() => setShowPlayBtn(true)} muted height='240'>
+                            <source src={videoMov} type='video/mov' />
+                            <source src={videoMov2} type='video/mp4' />
+                            <source src={videoMov3} type='video/mp4' />
+                        </video>
+
+                        {/* <video src={videoMov} autoPlay muted></video> */}
                     </div>
-                    <div className='mouse'></div>
+                    <a href={'#description'} className='mouse'></a>
                 </div>
 
                 <div className='description' id='description'>
@@ -321,7 +379,7 @@ const MainPage = () => {
                                         <span onClick={() => setToggleModal(!toggleModal)} class='cross close-popup'></span>
                                         <div className='heading'>Connect Wallet</div>
                                         <div className='connect-popup-wallets'>
-                                            <div onClick={() => activateBrowserWallet()} className='wallet-card-wrapper'>
+                                            <div onClick={() => QRCodeModal.open(uri)} className='wallet-card-wrapper'>
                                                 <img src={walletIcon} alt='WalletConnect' />
                                                 <div className='wallet-card-content'>
                                                     <b>WalletConnect</b>
@@ -343,14 +401,16 @@ const MainPage = () => {
                                     <div className='popup connect-popup'>
                                         <span onClick={() => setToggleModal(!toggleModal)} class='cross close-popup'></span>
                                         <div className='heading'>Make a bet</div>
-                                        <form class='form-wrapper' novalidate=''>
-                                            <div class='form-row'>
+                                        <form className='form-wrapper' novalidate=''>
+                                            <div className='form-row'>
                                                 <label>
                                                     <span>Your bet</span>
-                                                    <input name='betTokens' class='tokens-input' />
+                                                    <input name='betTokens' type='number' onChange={e => setTokensInput(e)} className='tokens-input' />
                                                 </label>
                                             </div>
-                                            <button class='button test'>BET</button>
+                                            <button className='button test' onClick={e => checkField(e)}>
+                                                BET
+                                            </button>
                                             <input type='hidden' name='id' value='2' />
                                         </form>
                                         <div className='popup-bet-your-bet'>Your bet: 0.0</div>
@@ -434,10 +494,25 @@ const MainPage = () => {
                     </div>
 
                     <div className='limit'>
-                        <h2 data-title='Roadmap'>Roadmap</h2>
+                        <h2 data-title='Roadmap' className='visible'>
+                            Roadmap
+                        </h2>
 
                         <div className='road-map-container'>
                             <div className='road-map-item'>
+                                <Lines />
+                                <div className='date'>12.06.2022</div>
+                                <div className='title'>Point name</div>
+                                <p>
+                                    Risus nec feugiat in fermentum posuere. In mollis nunc sed id semper risus. Eget lorem dolor sed viverra ipsum
+                                    nunc aliquet bibendum.
+                                </p>
+                                <p>Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Nullam ac tortor vitae purus faucibus</p>
+                            </div>
+
+                            <div className='road-map-item'>
+                                <Lines />
+
                                 <div className='date'>12.06.2022</div>
                                 <div className='title'>Point name</div>
                                 <p>
@@ -447,33 +522,8 @@ const MainPage = () => {
                                 <p>Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Nullam ac tortor vitae purus faucibus</p>
                             </div>
                             <div className='road-map-item'>
-                                <div className='date'>12.06.2022</div>
-                                <div className='title'>Point name</div>
-                                <p>
-                                    Risus nec feugiat in fermentum posuere. In mollis nunc sed id semper risus. Eget lorem dolor sed viverra ipsum
-                                    nunc aliquet bibendum.
-                                </p>
-                                <p>Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Nullam ac tortor vitae purus faucibus</p>
-                            </div>
-                            <div className='road-map-item'>
-                                <div className='date'>12.06.2022</div>
-                                <div className='title'>Point name</div>
-                                <p>
-                                    Risus nec feugiat in fermentum posuere. In mollis nunc sed id semper risus. Eget lorem dolor sed viverra ipsum
-                                    nunc aliquet bibendum.
-                                </p>
-                                <p>Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Nullam ac tortor vitae purus faucibus</p>
-                            </div>
-                            <div className='road-map-item'>
-                                <div className='date'>12.06.2022</div>
-                                <div className='title'>Point name</div>
-                                <p>
-                                    Risus nec feugiat in fermentum posuere. In mollis nunc sed id semper risus. Eget lorem dolor sed viverra ipsum
-                                    nunc aliquet bibendum.
-                                </p>
-                                <p>Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Nullam ac tortor vitae purus faucibus</p>
-                            </div>
-                            <div className='road-map-item'>
+                                <Lines />
+
                                 <div className='date'>12.06.2022</div>
                                 <div className='title'>Point name</div>
                                 <p>
@@ -488,8 +538,10 @@ const MainPage = () => {
 
                 <div className='faq' id='faq'>
                     <div className='limit'>
-                        <h2 data-title='FAQ'>FAQ</h2>
-                        <div className='accordion'>
+                        <h2 data-title='FAQ' className='visible'>
+                            FAQ
+                        </h2>
+                        <div className='accordion' onClick={e => showText(e)}>
                             <div className='title'>Risus nec feugiat in fermentum posuere. In mollis nunc sed id semper risus</div>
                             <div className='accordion-content'>
                                 <p>
@@ -499,7 +551,7 @@ const MainPage = () => {
                                 <p>Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Nullam ac tortor vitae purus faucibus</p>
                             </div>
                         </div>
-                        <div className='accordion'>
+                        <div className='accordion' onClick={e => showText(e)}>
                             <div className='title'>Risus nec feugiat in fermentum posuere. In mollis nunc</div>
                             <div className='accordion-content'>
                                 <p>
@@ -509,7 +561,7 @@ const MainPage = () => {
                                 <p>Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Nullam ac tortor vitae purus faucibus</p>
                             </div>
                         </div>
-                        <div className='accordion'>
+                        <div className='accordion' onClick={e => showText(e)}>
                             <div className='title'>Risus nec feugiat in fermentum posuere. In mollis nunc sed id semper risus</div>
                             <div className='accordion-content'>
                                 <p>
@@ -519,7 +571,7 @@ const MainPage = () => {
                                 <p>Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Nullam ac tortor vitae purus faucibus</p>
                             </div>
                         </div>
-                        <div className='accordion'>
+                        <div className='accordion' onClick={e => showText(e)}>
                             <div className='title'>Risus nec feugiat in fermentum posuere. In mollis nunc sed id semper risus</div>
                             <div className='accordion-content'>
                                 <p>
@@ -529,7 +581,7 @@ const MainPage = () => {
                                 <p>Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Nullam ac tortor vitae purus faucibus</p>
                             </div>
                         </div>
-                        <div className='accordion'>
+                        <div className='accordion' onClick={e => showText(e)}>
                             <div className='title'>Risus nec feugiat in fermentum posuere. In mollis nunc sed id semper risus</div>
                             <div className='accordion-content'>
                                 <p>
@@ -556,7 +608,7 @@ const MainPage = () => {
                 </div>
                 <div className='limit'>
                     <a href='' className='logo'>
-                        <img src='img/logo.png' alt='' />
+                        <img src={logo} alt='' />
                     </a>
                     <p>
                         Total stake pool: <span data-coin='eth'>253</span>
