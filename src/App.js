@@ -1,25 +1,30 @@
-import logo from './logo.svg';
-import './App.css';
+import logso from './logo.svg';
+import React, { useEffect, useState } from "react";
+import MainPage from './Components/Main';
+import { Contract } from "@ethersproject/contracts";
+import { shortenAddress, useCall, useEthers, useLookupAddress } from "@usedapp/core";
+
 
 function App() {
+
+
+  // useEffect(() => {
+  //   if (subgraphQueryError) {
+  //     console.error("Error while querying subgraph:", subgraphQueryError.message);
+  //     return;
+  //   }
+  //   if (!loading && data && data.transfers) {
+  //     console.log({ transfers: data.transfers });
+  //   }
+  // }, [loading, subgraphQueryError, data]);
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <MainPage />
     </div>
   );
 }
 
 export default App;
+
+

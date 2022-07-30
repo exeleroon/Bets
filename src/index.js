@@ -1,17 +1,38 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+import React from "react";
+import ReactDOM from "react-dom/client";
+import "./index.css";
+import App from "./App";
+import reportWebVitals from "./reportWebVitals";
+import {
+  Mainnet,
+  Kovan,
+  DAppProvider,
+  Config,
+  Ropsten,
+  Rinkeby,
+  Goerli
+} from '@usedapp/core'
+
+const INFURA_PROJECT_ID = "0ca6dbeae7224218bbd2fc8df4a32953";
+
+const config: Config = {
+  readOnlyChainId: Mainnet.chainId,
+  readOnlyUrls: {
+    [Mainnet.chainId]: `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+    [Kovan.chainId]: `https://kovan.infura.io/v3/${INFURA_PROJECT_ID}`,
+    [Ropsten.chainId]: `https://ropsten.infura.io/v3/${INFURA_PROJECT_ID}`,
+    [Rinkeby.chainId]: `https://rinkeby.infura.io/v3/${INFURA_PROJECT_ID}`,
+    [Goerli.chainId]: `https://goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
+  },
+  gasLimitBufferPercentage: 10,
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  <React.StrictMode>
+  <DAppProvider config={config}>
     <App />
-  </React.StrictMode>
+  </DAppProvider>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
