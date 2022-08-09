@@ -19,16 +19,15 @@ import map from '../assets/map.svg'
 
 import Typewriter from 'typewriter-effect'
 import Lines from './Lines'
-import { Mainnet, DAppProvider, useEthers, Config, useEtherBalance, useSendTransaction, ChainId, useContractFunction } from '@usedapp/core'
+import { useEthers, useEtherBalance, useSendTransaction, ChainId, useContractFunction } from '@usedapp/core'
 import WalletConnectProvider from '@walletconnect/web3-provider'
 import { formatEther } from '@ethersproject/units'
 import { BigNumber, ethers, utils } from 'ethers'
-import { Contract } from '@ethersproject/contracts'
 import WethAbi from '../BettingFlat_3_fixed.json'
-import { betting } from './DeployContract'
 
 const MainPage = () => {
     const { account, library, activateBrowserWallet, deactivate, activate, error, chainId } = useEthers()
+    const { sendTransaction, state } = useSendTransaction()
     const etherBalance = useEtherBalance(account)
     const wethContractAddress = '0xcd3FcdC0e3020B0EC7b9b4F8E2914E91dE8D219e'
     const vidRef = useRef()
@@ -38,11 +37,15 @@ const MainPage = () => {
     const [showPlayBtn, setShowPlayBtn] = useState(false)
     const [tokensInput, setTokensInput] = useState('')
     const [fieldErrors, setFieldErrors] = useState()
+    const [totalPool, setTotalPool] = useState()
     const [touched, setTouched] = useState(false)
 
-    const wethInterface = new utils.Interface(WethAbi)
-    const contract = new Contract(wethContractAddress, wethInterface)
-    const totalTakePool = useEtherBalance(wethContractAddress)
+    useEffect(() => {
+        getTotalBets()
+        deployContract()
+        getMultiplayer()
+        getVariantPool()
+    }, [])
 
     async function onConnect() {
         try {
@@ -56,47 +59,100 @@ const MainPage = () => {
         }
     }
 
-    const handleChange = event => {
-        setTokensInput(event.target.value)
-        checkField()
-    }
-
-    const handleBlur = event => {
-        setTouched(true)
-        if (!tokensInput) {
-            setFieldErrors('Field is required')
-        }
-        if (tokensInput && !etherBalance < tokensInput) {
-            setFieldErrors(`Insufficient funds for gas, you have ${formatEther(etherBalance)} want to bet ${tokensInput}`)
-        }
-    }
-
-
-    const { sendTransaction, states } = useSendTransaction()
-    const { state, send } = useContractFunction(contract, 'bet', { transactionName: 'makeBet' })
-    console.log(state)
-
-    //  console.log(betting);
-
-    const daiWithSigner = contract.connect(wethContractAddress)
-    console.log(daiWithSigner)
-
+    ////////////////////////////
+    // let dot = require('dotenv').config()
     const provider = new ethers.providers.Web3Provider(window.ethereum)
-    const signer = provider.getSigner()
+    const privateKey = ethers.utils.formatBytes32String('0x73fa33a57fee66')
+    const wallet = new ethers.Wallet(privateKey, provider)
+    const newContr = new ethers.Contract(wethContractAddress, WethAbi, wallet)
 
-    const disabled = chainId === ChainId.Mainnet
-    const status = state.status
+    //     const wethInterface = new utils.Interface(WethAbi)
+    //     const daiWithSigner = newContr.connect(wethContractAddress)
+    // console.log(daiWithSigner.poolPercentage());
 
-    const checkField = () => {
-        let replaced = tokensInput.toString()
-        setTokensInput(replaced.replace(',', '.'))
+    const deployContract = async () => {
+        newContr.deployed(await new Promise((resolve, reject) => resolve(newContr)))
     }
+    const attach = newContr.attach(wethContractAddress)
+
+    const getTotalBets = () => {
+        // console.log(Number("0x01")); convert simple hex to number
+
+        attach
+            .getAllBetStat()
+            .then(data => {
+                data.forEach((el, i) => {
+                    if (i === 1) {
+                        let statsInfo = ethers.FixedNumber.fromBytes(el)
+                        setTotalPool(statsInfo._value)
+                    }
+                })
+            })
+            .catch(err => {
+                console.error(err)
+            })
+    }
+
+    const getMultiplayer = () => {
+        // console.log(utils.parseUnits('1'))
+        // console.log('big', BigNumber.from('1'))
+
+        attach
+            .currentMultiplier(2)
+            .then(data => {
+                console.log(data)
+                console.log('to number', Number(data._hex))
+                console.log(ethers.FixedNumber.fromBytes(data))
+            })
+            .catch(err => {
+                console.error(err)
+            })
+    }
+
+    const getVariantPool = () => {
+        // console.log(utils.parseUnits('1'))
+        // console.log('big', BigNumber.from('1'))
+
+        attach
+            .variantValues(1)
+            .then(data => {
+                let statsInfo = ethers.FixedNumber.fromBytes(data.amountBet)
+                console.log('total value', statsInfo._value)
+
+                console.log(data)
+                console.log('to number', Number(data._hex))
+            })
+            .catch(err => {
+                console.error(err)
+            })
+    }
+
+    const makeBet = variant => {
+        attach
+            .bet(1, { value: utils.parseEther('0.34'), gasLimit: '10000000' })
+            .then(bet => {
+                console.log(bet)
+            })
+            .catch(err => {
+                console.error(err)
+            })
+    }
+
+    // const signer = provider.getSigner()
+    // contract = new ethers.Contract("dai.tokens.ethers.eth", abi, signer
+
+    //contr func below
 
     // useEffect(() => {
     //     if (error) {
     //         setActivateError(error.message)
     //     }
     // }, [error])
+
+    const checkField = () => {
+        let replaced = tokensInput.toString()
+        setTokensInput(replaced.replace(',', '.'))
+    }
 
     const tabsEl = document.querySelectorAll('.accordion')
     const contentEl = document.querySelectorAll('.accordion-content')
@@ -120,13 +176,25 @@ const MainPage = () => {
         setShowPlayBtn(false)
     }
 
+    const handleChange = event => {
+        setTokensInput(event.target.value)
+        checkField()
+    }
+
+    const handleBlur = event => {
+        setTouched(true)
+        if (!tokensInput) {
+            setFieldErrors('Field is required')
+        }
+        if (tokensInput && !etherBalance < tokensInput) {
+            setFieldErrors(`Insufficient funds for gas, you have ${formatEther(etherBalance)} want to bet ${tokensInput}`)
+        }
+    }
+
     const handleSubmit = e => {
         e.preventDefault()
 
-        console.log(state)
-
         if (etherBalance < tokensInput) {
-            contract.bet(0.0012)
             return
         } else {
             void sendTransaction({ to: wethContractAddress, value: utils.parseEther(tokensInput) })
@@ -144,7 +212,7 @@ const MainPage = () => {
                 </div>
             )}
             {/* <button onClick={() => send(utils.parseEther("1.3"))} style={{ padding: 30, width: 30, marginTop: 140, marginLeft: '50%' }}> */}
-            <button onClick={() => daiWithSigner.poolPercentage()} style={{ padding: 30, width: 30, marginTop: 140, marginLeft: '50%' }}>
+            <button onClick={() => makeBet()} style={{ padding: 30, width: 30, marginTop: 140, marginLeft: '50%' }}>
                 CLIKCKCKCK
             </button>
             <div className='layout'>
@@ -296,7 +364,7 @@ const MainPage = () => {
                         <p>Choose an option and place your bet</p>
                         <p>
                             Total stake pool:
-                            <span data-coin='eth'>{totalTakePool !== undefined && formatEther(totalTakePool)}</span>
+                            <span data-coin='eth'>{totalPool}</span>
                         </p>
                         {toggleModal ? (
                             !account ? (
@@ -542,7 +610,7 @@ const MainPage = () => {
                         <img src={logo} alt='' />
                     </a>
                     <p>
-                        Total stake pool: <span data-coin='eth'>253</span>
+                        Total stake pool: <span data-coin='eth'>{totalPool}</span>
                     </p>
 
                     <div className='links'>
