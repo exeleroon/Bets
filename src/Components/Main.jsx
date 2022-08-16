@@ -22,7 +22,7 @@ import Lines from './Lines'
 import { useEthers, useEtherBalance, useSendTransaction, ChainId, useContractFunction } from '@usedapp/core'
 import WalletConnectProvider from '@walletconnect/web3-provider'
 import { formatEther } from '@ethersproject/units'
-import { BigNumber, ethers, utils } from 'ethers'
+import { BigNumber, ethers, FixedNumber, utils } from 'ethers'
 import WethAbi from '../BettingFlat_3_fixed.json'
 
 const MainPage = () => {
@@ -37,13 +37,19 @@ const MainPage = () => {
     const [showPlayBtn, setShowPlayBtn] = useState(false)
     const [tokensInput, setTokensInput] = useState('')
     const [fieldErrors, setFieldErrors] = useState()
+    const [pHuilo, setHuilo] = useState()
+    const [diplomatLuk, setDiplomat] = useState()
+    const [both, setBoth] = useState()
     const [totalPool, setTotalPool] = useState()
     const [touched, setTouched] = useState(false)
 
     useEffect(() => {
         getTotalBets()
         deployContract()
-        getMultiplayer()
+        getMultiplayerHuilo()
+        getMultiplayerLuk()
+        getMultiplayerBoth()
+
         getVariantPool()
     }, [])
 
@@ -59,25 +65,26 @@ const MainPage = () => {
         }
     }
 
-    ////////////////////////////
     // let dot = require('dotenv').config()
     const provider = new ethers.providers.Web3Provider(window.ethereum)
     const privateKey = ethers.utils.formatBytes32String('0x73fa33a57fee66')
     const wallet = new ethers.Wallet(privateKey, provider)
     const newContr = new ethers.Contract(wethContractAddress, WethAbi, wallet)
 
+    const deployContract = async () => {
+        newContr.deployed(await new Promise((resolve, reject) => resolve(newContr)))
+    }
+    
+     // const signer = provider.getSigner()
+    // contract = new ethers.Contract("dai.tokens.ethers.eth", abi, signer)
     //     const wethInterface = new utils.Interface(WethAbi)
     //     const daiWithSigner = newContr.connect(wethContractAddress)
     // console.log(daiWithSigner.poolPercentage());
 
-    const deployContract = async () => {
-        newContr.deployed(await new Promise((resolve, reject) => resolve(newContr)))
-    }
+  
     const attach = newContr.attach(wethContractAddress)
 
     const getTotalBets = () => {
-        // console.log(Number("0x01")); convert simple hex to number
-
         attach
             .getAllBetStat()
             .then(data => {
@@ -93,16 +100,42 @@ const MainPage = () => {
             })
     }
 
-    const getMultiplayer = () => {
-        // console.log(utils.parseUnits('1'))
-        // console.log('big', BigNumber.from('1'))
+    
+    const getMultiplayerHuilo = () => {
+        attach
+            .currentMultiplier(1)
+            .then(data => {
+                    console.log(data);
+                let statsInfo = ethers.FixedNumber.from(data)
 
+                setHuilo(statsInfo._value / 100)
+            })
+            .catch(err => {
+                console.error(err)
+            })
+    }
+
+    const getMultiplayerLuk = () => {
         attach
             .currentMultiplier(2)
             .then(data => {
-                console.log(data)
-                console.log('to number', Number(data._hex))
-                console.log(ethers.FixedNumber.fromBytes(data))
+                let statsInfo = ethers.FixedNumber.from(data / 100)
+                setDiplomat(statsInfo._value)
+            })
+            .catch(err => {
+                console.error(err)
+            })
+    }
+
+    const getMultiplayerBoth = () => {
+        // console.log(utils.parseUnits('1'))
+        // console.log('big', BigNumber.from('1'))
+        attach
+            .currentMultiplier(3)
+            .then(data => {
+                let statsInfo = ethers.FixedNumber.from(data / 100)
+                let fixedVal = parseInt(statsInfo._value)
+                setBoth(statsInfo._value)
             })
             .catch(err => {
                 console.error(err)
@@ -110,17 +143,14 @@ const MainPage = () => {
     }
 
     const getVariantPool = () => {
-        // console.log(utils.parseUnits('1'))
-        // console.log('big', BigNumber.from('1'))
-
         attach
             .variantValues(1)
             .then(data => {
                 let statsInfo = ethers.FixedNumber.fromBytes(data.amountBet)
                 console.log('total value', statsInfo._value)
 
-                console.log(data)
-                console.log('to number', Number(data._hex))
+                // console.log(data)
+                // console.log('to number', Number(data._hex))
             })
             .catch(err => {
                 console.error(err)
@@ -137,17 +167,6 @@ const MainPage = () => {
                 console.error(err)
             })
     }
-
-    // const signer = provider.getSigner()
-    // contract = new ethers.Contract("dai.tokens.ethers.eth", abi, signer
-
-    //contr func below
-
-    // useEffect(() => {
-    //     if (error) {
-    //         setActivateError(error.message)
-    //     }
-    // }, [error])
 
     const checkField = () => {
         let replaced = tokensInput.toString()
@@ -186,7 +205,7 @@ const MainPage = () => {
         if (!tokensInput) {
             setFieldErrors('Field is required')
         }
-        if (tokensInput && !etherBalance < tokensInput) {
+        if (tokensInput && formatEther(etherBalance) < tokensInput) {
             setFieldErrors(`Insufficient funds for gas, you have ${formatEther(etherBalance)} want to bet ${tokensInput}`)
         }
     }
@@ -194,7 +213,7 @@ const MainPage = () => {
     const handleSubmit = e => {
         e.preventDefault()
 
-        if (etherBalance < tokensInput) {
+        if (formatEther(etherBalance) < tokensInput) {
             return
         } else {
             void sendTransaction({ to: wethContractAddress, value: utils.parseEther(tokensInput) })
@@ -428,7 +447,7 @@ const MainPage = () => {
                                 </div>
                                 <div className='name'>Putin</div>
                                 <div className='coef'>
-                                    Coef: <span>1.51</span>
+                                    Coef: <span>{pHuilo}</span>
                                 </div>
                                 <a href='#bet-popup' onClick={() => setToggleModal(!toggleModal)} className='button popup-button'>
                                     make a BET
@@ -440,7 +459,7 @@ const MainPage = () => {
                                 </div>
                                 <div className='name'>Lukashenko</div>
                                 <div className='coef'>
-                                    Coef: <span>4.20</span>
+                                    Coef: <span>{diplomatLuk}</span>
                                 </div>
                                 <a href='#bet-popup' onClick={() => setToggleModal(!toggleModal)} className='button popup-button'>
                                     make a BET
@@ -452,7 +471,7 @@ const MainPage = () => {
                                 </div>
                                 <div className='name'>Both together</div>
                                 <div className='coef'>
-                                    Coef: <span>5.0</span>
+                                    Coef: <span>{both}</span>
                                 </div>
                                 <a href='#bet-popup' onClick={() => setToggleModal(!toggleModal)} className='button popup-button'>
                                     make a BET
